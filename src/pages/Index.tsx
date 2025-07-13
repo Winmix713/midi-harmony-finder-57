@@ -1,7 +1,7 @@
-import { MidiComparator } from '@/components/MidiComparator';
+import { MidiComparatorOptimized } from '@/components/MidiComparatorOptimized';
 
 const Index = () => {
-  return <MidiComparator />;
+  return <MidiComparatorOptimized />;
 };
 
 export default Index;

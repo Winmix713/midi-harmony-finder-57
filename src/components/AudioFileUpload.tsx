@@ -96,8 +96,8 @@ export function AudioFileUpload({ onMidiGenerated, onLoadToSlot, className, slot
       {/* File Drop Zone */}
       <Card 
         className={cn(
-          "relative h-32 bg-gradient-card border-border transition-all duration-300 cursor-pointer",
-          "hover:shadow-glow hover:border-primary/50",
+          "relative h-32 bg-gradient-card border-border transition-all duration-300 cursor-pointer z-10",
+          "hover:shadow-glow hover:border-primary/50 backdrop-blur-sm",
           dragOver && "border-primary shadow-glow scale-[1.02]",
           isConverting && "opacity-50 pointer-events-none"
         )}
@@ -155,7 +155,7 @@ export function AudioFileUpload({ onMidiGenerated, onLoadToSlot, className, slot
 
       {/* Conversion Progress */}
       {progress && (
-        <Card className="p-4 bg-gradient-card border-border">
+        <Card className="p-4 bg-gradient-card border-border backdrop-blur-sm z-20">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-foreground">
