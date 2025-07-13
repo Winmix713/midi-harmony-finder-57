@@ -1,15 +1,18 @@
 import { useState, useCallback } from 'react';
-import { Upload, File, X } from 'lucide-react';
+import { Upload, File, X, Music2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { AudioFileUpload } from './AudioFileUpload';
 
 interface FileUploadProps {
   onFilesSelected: (file1: File | null, file2: File | null) => void;
+  onMidiGenerated?: (midiFile: File, slot: 1 | 2) => void;
   isLoading?: boolean;
 }
 
-export function FileUpload({ onFilesSelected, isLoading = false }: FileUploadProps) {
+export function FileUpload({ onFilesSelected, onMidiGenerated, isLoading = false }: FileUploadProps) {
   const [file1, setFile1] = useState<File | null>(null);
   const [file2, setFile2] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState<1 | 2 | null>(null);
@@ -119,29 +122,74 @@ export function FileUpload({ onFilesSelected, isLoading = false }: FileUploadPro
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-xl sm:text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          Upload MIDI Files
+          Upload Files for Comparison
         </h2>
         <p className="text-sm sm:text-base text-muted-foreground mt-2">
-          Select two MIDI files to compare and analyze their musical similarity
+          Upload MIDI files directly or convert audio files to MIDI first
         </p>
       </div>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-        <FileSlot slot={1} file={file1} />
-        <FileSlot slot={2} file={file2} />
-      </div>
 
-      {file1 && file2 && (
-        <div className="flex justify-center">
-          <div className="flex items-center gap-2 text-sm text-similarity-high">
-            <div className="w-2 h-2 bg-similarity-high rounded-full animate-pulse" />
-            Ready to compare
+      <Tabs defaultValue="midi" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="midi" className="flex items-center gap-2">
+            <File className="w-4 h-4" />
+            MIDI Files
+          </TabsTrigger>
+          <TabsTrigger value="audio" className="flex items-center gap-2">
+            <Music2 className="w-4 h-4" />
+            Audio to MIDI
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="midi" className="space-y-4">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">
+              Select two MIDI files to compare and analyze their musical similarity
+            </p>
           </div>
-        </div>
-      )}
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <FileSlot slot={1} file={file1} />
+            <FileSlot slot={2} file={file2} />
+          </div>
+
+          {file1 && file2 && (
+            <div className="flex justify-center">
+              <div className="flex items-center gap-2 text-sm text-similarity-high">
+                <div className="w-2 h-2 bg-similarity-high rounded-full animate-pulse" />
+                Ready to compare
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="audio" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="text-center">
+                <h4 className="font-medium text-foreground">Audio File 1</h4>
+                <p className="text-xs text-muted-foreground">Convert to MIDI for slot 1</p>
+              </div>
+              <AudioFileUpload 
+                onMidiGenerated={(midiFile) => onMidiGenerated?.(midiFile, 1)}
+              />
+            </div>
+            
+            <div className="space-y-4">
+              <div className="text-center">
+                <h4 className="font-medium text-foreground">Audio File 2</h4>
+                <p className="text-xs text-muted-foreground">Convert to MIDI for slot 2</p>
+              </div>
+              <AudioFileUpload 
+                onMidiGenerated={(midiFile) => onMidiGenerated?.(midiFile, 2)}
+              />
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

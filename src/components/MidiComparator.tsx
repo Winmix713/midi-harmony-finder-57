@@ -28,6 +28,35 @@ export function MidiComparator() {
   const [processingMode, setProcessingMode] = useState<'client' | 'server'>('client');
 
 
+  const handleMidiGenerated = useCallback(async (midiFile: File, slot: 1 | 2) => {
+    try {
+      const midiData = await processMidiFile(midiFile);
+      
+      if (slot === 1) {
+        setFile1(midiFile);
+        setMidiData1(midiData);
+        
+        // Auto-compare if we have both files
+        if (file2 && midiData2) {
+          await compareFiles(midiData, midiData2, processingMode);
+        }
+      } else {
+        setFile2(midiFile);
+        setMidiData2(midiData);
+        
+        // Auto-compare if we have both files
+        if (file1 && midiData1) {
+          await compareFiles(midiData1, midiData, processingMode);
+        }
+      }
+      
+      toast.success(`Audio converted to MIDI and loaded in slot ${slot}!`);
+    } catch (error) {
+      console.error('Error processing generated MIDI:', error);
+      toast.error('Failed to process generated MIDI file.');
+    }
+  }, [file1, file2, midiData1, midiData2, processMidiFile, compareFiles, processingMode, setFile1, setFile2, setMidiData1, setMidiData2]);
+
   const handleFilesSelected = useCallback(async (newFile1: File | null, newFile2: File | null) => {
     setFile1(newFile1);
     setFile2(newFile2);
@@ -94,7 +123,11 @@ export function MidiComparator() {
         />
 
         {/* File Upload */}
-        <FileUpload onFilesSelected={handleFilesSelected} isLoading={isProcessing} />
+        <FileUpload 
+          onFilesSelected={handleFilesSelected} 
+          onMidiGenerated={handleMidiGenerated}
+          isLoading={isProcessing} 
+        />
 
         {/* Enhanced Progress Indicator */}
         <EnhancedProgressIndicator isVisible={isProcessing} />
