@@ -17,6 +17,7 @@ export function AudioFileUpload({ onMidiGenerated, onLoadToSlot, className, slot
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [generatedMidi, setGeneratedMidi] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [instanceId] = useState(() => Math.random().toString(36).substr(2, 9)); // Unique ID for each instance
   const { convertAudioToMidi, isConverting, progress } = useAudioToMidi();
 
   const isAudioFile = (file: File) => {
@@ -82,10 +83,10 @@ export function AudioFileUpload({ onMidiGenerated, onLoadToSlot, className, slot
   }, [generatedMidi, onLoadToSlot]);
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-4", className)} key={`audio-upload-${slot}-${instanceId}`}>
       <div className="text-center">
         <h3 className="text-lg font-semibold text-foreground mb-2">
-          Convert Audio to MIDI
+          Convert Audio to MIDI {slot ? `(Slot ${slot})` : ''}
         </h3>
         <p className="text-sm text-muted-foreground">
           Upload MP3, WAV, or M4A files to automatically generate MIDI
@@ -110,6 +111,7 @@ export function AudioFileUpload({ onMidiGenerated, onLoadToSlot, className, slot
         <input
           type="file"
           accept=".mp3,.wav,.m4a,.aac,audio/*"
+          id={`audio-input-${slot}-${instanceId}`}
           onChange={handleFileInput}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           disabled={isConverting}
