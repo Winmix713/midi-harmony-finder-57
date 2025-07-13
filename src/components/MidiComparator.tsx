@@ -126,7 +126,10 @@ export function MidiComparator() {
         <FileUpload 
           onFilesSelected={handleFilesSelected} 
           onMidiGenerated={handleMidiGenerated}
-          isLoading={isProcessing} 
+          isLoading={isProcessing}
+          file1={file1}
+          file2={file2}
+          processMidiFile={processMidiFile}
         />
 
         {/* Enhanced Progress Indicator */}

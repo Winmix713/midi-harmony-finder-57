@@ -5,35 +5,26 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { AudioFileUpload } from './AudioFileUpload';
-import { useMidiFiles } from '@/hooks/useMidiFiles';
 
 interface FileUploadProps {
   onFilesSelected: (file1: File | null, file2: File | null) => void;
   onMidiGenerated?: (midiFile: File, slot: 1 | 2) => void;
   isLoading?: boolean;
+  file1?: File | null;
+  file2?: File | null;
+  processMidiFile?: (file: File) => Promise<any>;
 }
 
-export function FileUpload({ onFilesSelected, onMidiGenerated, isLoading = false }: FileUploadProps) {
-  const { file1, file2, midiData1, midiData2, setFile1, setFile2, setMidiData1, setMidiData2, processMidiFile } = useMidiFiles();
+export function FileUpload({ onFilesSelected, onMidiGenerated, isLoading = false, file1, file2, processMidiFile }: FileUploadProps) {
   const [dragOver, setDragOver] = useState<1 | 2 | null>(null);
 
   const handleLoadToSlot = useCallback(async (midiFile: File, targetSlot: 1 | 2) => {
-    try {
-      const midiData = await processMidiFile(midiFile);
-      
-      if (targetSlot === 1) {
-        setFile1(midiFile);
-        setMidiData1(midiData);
-        onFilesSelected(midiFile, file2);
-      } else {
-        setFile2(midiFile);
-        setMidiData2(midiData);
-        onFilesSelected(file1, midiFile);
-      }
-    } catch (error) {
-      console.error('Error loading MIDI to slot:', error);
+    if (targetSlot === 1) {
+      onFilesSelected(midiFile, file2 || null);
+    } else {
+      onFilesSelected(file1 || null, midiFile);
     }
-  }, [file1, file2, processMidiFile, onFilesSelected, setFile1, setFile2, setMidiData1, setMidiData2]);
+  }, [file1, file2, onFilesSelected]);
 
   const handleDrop = useCallback((e: React.DragEvent, slot: 1 | 2) => {
     e.preventDefault();
@@ -56,15 +47,11 @@ export function FileUpload({ onFilesSelected, onMidiGenerated, isLoading = false
 
   const clearFile = useCallback((slot: 1 | 2) => {
     if (slot === 1) {
-      setFile1(null);
-      setMidiData1(null);
-      onFilesSelected(null, file2);
+      onFilesSelected(null, file2 || null);
     } else {
-      setFile2(null);
-      setMidiData2(null);
-      onFilesSelected(file1, null);
+      onFilesSelected(file1 || null, null);
     }
-  }, [file1, file2, onFilesSelected, setFile1, setFile2, setMidiData1, setMidiData2]);
+  }, [file1, file2, onFilesSelected]);
 
   const FileSlot = ({ slot, file }: { slot: 1 | 2; file: File | null }) => (
     <Card 
