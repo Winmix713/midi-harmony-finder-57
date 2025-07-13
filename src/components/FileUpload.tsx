@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { AudioFileUpload } from './AudioFileUpload';
+import { useMidiFiles } from '@/hooks/useMidiFiles';
 
 interface FileUploadProps {
   onFilesSelected: (file1: File | null, file2: File | null) => void;
@@ -13,9 +14,26 @@ interface FileUploadProps {
 }
 
 export function FileUpload({ onFilesSelected, onMidiGenerated, isLoading = false }: FileUploadProps) {
-  const [file1, setFile1] = useState<File | null>(null);
-  const [file2, setFile2] = useState<File | null>(null);
+  const { file1, file2, midiData1, midiData2, setFile1, setFile2, setMidiData1, setMidiData2, processMidiFile } = useMidiFiles();
   const [dragOver, setDragOver] = useState<1 | 2 | null>(null);
+
+  const handleLoadToSlot = useCallback(async (midiFile: File, targetSlot: 1 | 2) => {
+    try {
+      const midiData = await processMidiFile(midiFile);
+      
+      if (targetSlot === 1) {
+        setFile1(midiFile);
+        setMidiData1(midiData);
+        onFilesSelected(midiFile, file2);
+      } else {
+        setFile2(midiFile);
+        setMidiData2(midiData);
+        onFilesSelected(file1, midiFile);
+      }
+    } catch (error) {
+      console.error('Error loading MIDI to slot:', error);
+    }
+  }, [file1, file2, processMidiFile, onFilesSelected, setFile1, setFile2, setMidiData1, setMidiData2]);
 
   const handleDrop = useCallback((e: React.DragEvent, slot: 1 | 2) => {
     e.preventDefault();
@@ -25,38 +43,28 @@ export function FileUpload({ onFilesSelected, onMidiGenerated, isLoading = false
     const midiFile = files.find(file => file.name.toLowerCase().endsWith('.mid') || file.name.toLowerCase().endsWith('.midi'));
     
     if (midiFile) {
-      if (slot === 1) {
-        setFile1(midiFile);
-        onFilesSelected(midiFile, file2);
-      } else {
-        setFile2(midiFile);
-        onFilesSelected(file1, midiFile);
-      }
+      handleLoadToSlot(midiFile, slot);
     }
-  }, [file1, file2, onFilesSelected]);
+  }, [handleLoadToSlot]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>, slot: 1 | 2) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (slot === 1) {
-        setFile1(file);
-        onFilesSelected(file, file2);
-      } else {
-        setFile2(file);
-        onFilesSelected(file1, file);
-      }
+      handleLoadToSlot(file, slot);
     }
-  }, [file1, file2, onFilesSelected]);
+  }, [handleLoadToSlot]);
 
   const clearFile = useCallback((slot: 1 | 2) => {
     if (slot === 1) {
       setFile1(null);
+      setMidiData1(null);
       onFilesSelected(null, file2);
     } else {
       setFile2(null);
+      setMidiData2(null);
       onFilesSelected(file1, null);
     }
-  }, [file1, file2, onFilesSelected]);
+  }, [file1, file2, onFilesSelected, setFile1, setFile2, setMidiData1, setMidiData2]);
 
   const FileSlot = ({ slot, file }: { slot: 1 | 2; file: File | null }) => (
     <Card 
@@ -175,6 +183,8 @@ export function FileUpload({ onFilesSelected, onMidiGenerated, isLoading = false
               </div>
               <AudioFileUpload 
                 onMidiGenerated={(midiFile) => onMidiGenerated?.(midiFile, 1)}
+                onLoadToSlot={handleLoadToSlot}
+                slot={1}
               />
             </div>
             
@@ -185,6 +195,8 @@ export function FileUpload({ onFilesSelected, onMidiGenerated, isLoading = false
               </div>
               <AudioFileUpload 
                 onMidiGenerated={(midiFile) => onMidiGenerated?.(midiFile, 2)}
+                onLoadToSlot={handleLoadToSlot}
+                slot={2}
               />
             </div>
           </div>

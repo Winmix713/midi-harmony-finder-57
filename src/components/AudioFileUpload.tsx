@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Upload, Music, X, Loader2 } from 'lucide-react';
+import { Upload, Music, X, Loader2, Download, ArrowRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -8,11 +8,14 @@ import { useAudioToMidi } from '@/hooks/useAudioToMidi';
 
 interface AudioFileUploadProps {
   onMidiGenerated: (midiFile: File) => void;
+  onLoadToSlot?: (midiFile: File, slot: 1 | 2) => void;
   className?: string;
+  slot?: 1 | 2;
 }
 
-export function AudioFileUpload({ onMidiGenerated, className }: AudioFileUploadProps) {
+export function AudioFileUpload({ onMidiGenerated, onLoadToSlot, className, slot }: AudioFileUploadProps) {
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [generatedMidi, setGeneratedMidi] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const { convertAudioToMidi, isConverting, progress } = useAudioToMidi();
 
@@ -48,8 +51,8 @@ export function AudioFileUpload({ onMidiGenerated, className }: AudioFileUploadP
 
     try {
       const result = await convertAudioToMidi(audioFile);
+      setGeneratedMidi(result.midiFile);
       onMidiGenerated(result.midiFile);
-      setAudioFile(null); // Clear after successful conversion
     } catch (error) {
       console.error('Conversion failed:', error);
     }
@@ -57,7 +60,26 @@ export function AudioFileUpload({ onMidiGenerated, className }: AudioFileUploadP
 
   const clearFile = useCallback(() => {
     setAudioFile(null);
+    setGeneratedMidi(null);
   }, []);
+
+  const downloadMidi = useCallback(() => {
+    if (!generatedMidi) return;
+    
+    const url = URL.createObjectURL(generatedMidi);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = generatedMidi.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [generatedMidi]);
+
+  const loadToSlot = useCallback((targetSlot: 1 | 2) => {
+    if (!generatedMidi || !onLoadToSlot) return;
+    onLoadToSlot(generatedMidi, targetSlot);
+  }, [generatedMidi, onLoadToSlot]);
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -151,7 +173,7 @@ export function AudioFileUpload({ onMidiGenerated, className }: AudioFileUploadP
       )}
 
       {/* Convert Button */}
-      {audioFile && !isConverting && (
+      {audioFile && !isConverting && !generatedMidi && (
         <div className="flex justify-center">
           <Button 
             onClick={handleConvert}
@@ -161,6 +183,60 @@ export function AudioFileUpload({ onMidiGenerated, className }: AudioFileUploadP
             Convert to MIDI
           </Button>
         </div>
+      )}
+
+      {/* Generated MIDI Actions */}
+      {generatedMidi && (
+        <Card className="p-4 bg-gradient-card border-border">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Music className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">
+                  MIDI Generated Successfully
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {generatedMidi.name}
+              </span>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadMidi}
+                className="flex-1"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download MIDI
+              </Button>
+              
+              {onLoadToSlot && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadToSlot(1)}
+                    className="flex-1"
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                    Load to Slot 1
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => loadToSlot(2)}
+                    className="flex-1"
+                  >
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                    Load to Slot 2
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </Card>
       )}
     </div>
   );
