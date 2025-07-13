@@ -70,33 +70,61 @@ async function createDemoMidiFromAudio(audioFile: File): Promise<File> {
   // This is a placeholder - in reality you'd use an AI service
   // For demo, we'll create a simple MIDI file based on the audio duration
   
-  const audioBuffer = await audioFile.arrayBuffer();
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const decodedAudio = await audioContext.decodeAudioData(audioBuffer);
-  
-  // Simple MIDI file generation based on audio characteristics
-  const duration = decodedAudio.duration;
-  const sampleData = decodedAudio.getChannelData(0);
-  
-  // Create a basic MIDI file structure (simplified)
-  const midiBytes = createSimpleMidi(duration, analyzeAudioPeaks(sampleData));
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioBuffer = await audioFile.arrayBuffer();
+    const decodedAudio = await audioContext.decodeAudioData(audioBuffer);
+    
+    // Simple MIDI file generation based on audio characteristics
+    const duration = Math.min(decodedAudio.duration, 30); // Limit to 30 seconds for demo
+    const sampleData = decodedAudio.getChannelData(0);
+    
+    // Create a basic MIDI file structure (simplified)
+    const midiBytes = createSimpleMidi(duration, analyzeAudioPeaks(sampleData, 16)); // Limit to 16 notes
+    
+    return new File([midiBytes], `${audioFile.name.replace(/\.[^/.]+$/, '')}_converted.mid`, {
+      type: 'audio/midi'
+    });
+  } catch (error) {
+    console.error('Error in createDemoMidiFromAudio:', error);
+    // Fallback: create a very simple MIDI file
+    return createFallbackMidiFile(audioFile);
+  }
+}
+
+function createFallbackMidiFile(audioFile: File): File {
+  // Create a simple C major scale as fallback
+  const notes = [60, 62, 64, 65, 67, 69, 71, 72]; // C major scale
+  const midiBytes = createSimpleMidi(4, notes);
   
   return new File([midiBytes], `${audioFile.name.replace(/\.[^/.]+$/, '')}_converted.mid`, {
     type: 'audio/midi'
   });
 }
 
-function analyzeAudioPeaks(sampleData: Float32Array): number[] {
+function analyzeAudioPeaks(sampleData: Float32Array, maxNotes: number = 16): number[] {
   // Simplified peak detection for demo
   const peaks = [];
-  const chunkSize = Math.floor(sampleData.length / 20);
+  const chunkSize = Math.max(1, Math.floor(sampleData.length / maxNotes));
   
-  for (let i = 0; i < sampleData.length; i += chunkSize) {
-    const chunk = sampleData.slice(i, i + chunkSize);
-    const peak = Math.max(...chunk.map(Math.abs));
-    if (peak > 0.1) {
-      peaks.push(60 + Math.floor(peak * 24)); // Map to MIDI note range
+  for (let i = 0; i < sampleData.length && peaks.length < maxNotes; i += chunkSize) {
+    const chunk = sampleData.slice(i, Math.min(i + chunkSize, sampleData.length));
+    let peak = 0;
+    
+    // Find the maximum absolute value in the chunk
+    for (let j = 0; j < chunk.length; j++) {
+      peak = Math.max(peak, Math.abs(chunk[j]));
     }
+    
+    if (peak > 0.1) {
+      const note = 60 + Math.floor(peak * 24); // Map to MIDI note range (C4-C6)
+      peaks.push(Math.min(127, Math.max(0, note))); // Ensure valid MIDI range
+    }
+  }
+  
+  // Ensure we have at least a few notes
+  if (peaks.length === 0) {
+    peaks.push(60, 64, 67); // Simple C major triad
   }
   
   return peaks;
@@ -114,35 +142,40 @@ function createSimpleMidi(duration: number, notes: number[]): Uint8Array {
     0x00, 0x60  // Division (96 ticks per quarter note)
   ]);
   
-  const trackData = [];
-  let time = 0;
+  const trackData: number[] = [];
   
-  notes.forEach((note, index) => {
+  // Limit notes to prevent stack overflow
+  const limitedNotes = notes.slice(0, 12);
+  
+  limitedNotes.forEach((note, index) => {
     const deltaTime = index === 0 ? 0 : 96; // Quarter note spacing
     
+    // Add variable length delta time
+    if (deltaTime < 128) {
+      trackData.push(deltaTime);
+    } else {
+      trackData.push(0x81, deltaTime & 0x7F);
+    }
+    
     // Note on
-    trackData.push(
-      deltaTime, 0x90, note, 0x40 // Note on, velocity 64
-    );
+    trackData.push(0x90, Math.min(127, Math.max(0, note)), 0x40);
     
     // Note off after quarter note
-    trackData.push(
-      96, 0x80, note, 0x00 // Note off
-    );
+    trackData.push(96, 0x80, Math.min(127, Math.max(0, note)), 0x00);
   });
   
   // End of track
   trackData.push(0x00, 0xFF, 0x2F, 0x00);
   
-  const track = new Uint8Array([
+  const trackHeader = new Uint8Array([
     0x4D, 0x54, 0x72, 0x6B, // "MTrk"
-    ...intToBytes(trackData.length, 4), // Track length
-    ...trackData
+    ...intToBytes(trackData.length, 4) // Track length
   ]);
   
-  const result = new Uint8Array(header.length + track.length);
+  const result = new Uint8Array(header.length + trackHeader.length + trackData.length);
   result.set(header);
-  result.set(track, header.length);
+  result.set(trackHeader, header.length);
+  result.set(trackData, header.length + trackHeader.length);
   
   return result;
 }
